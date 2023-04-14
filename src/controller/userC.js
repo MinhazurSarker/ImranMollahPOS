@@ -112,7 +112,7 @@ const getMyProfile = async (req, res) => {
         if (user) {
             res.status(200).json({ msg: 'success', user: { name: user.name, role: user.role, email: user.email, _id: user._id, img: user.img } })
         } else {
-            res.status(404).json({ err: 'notFound', })
+            res.status(200).json({ err: 'notFound', })
         }
     } catch (err) {
         res.status(400).json({ err: err })

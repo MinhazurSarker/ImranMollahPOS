@@ -16,48 +16,68 @@ const createCustomer = async (req, res) => {
         res.status(500).json({ err: 'error' })
     }
 }
+
 const getCustomers = async (req, res) => {
     const page = req.query.page || 1;
     const search = req.query.search || '';
-    const match = {
-        name: { $regex: search, $options: "i" }
-    }
+    
     try {
-        const customers = await Customer.aggregate([
-            {
-                $match: match
-            },
-            {
-                $sort: { updatedAt: -1 }
-            },
-            {
-                $skip: (page - 1) * 100
-            },
-            {
-                $limit: 100
-            },
-        ]);
-        const totalDocs = await Customer.countDocuments(match);
-        const pages = Math.ceil(totalDocs / 100)
-        if (customers) {
-            res.status(200).send({
-                customers: customers,
-                lastPage: page * 100 >= totalDocs ? true : false,
-                pages: pages,
-                current: page,
-            });
-        } else {
-            res.status(400).send({
-                customers: [],
-                lastPage: true,
-                pages: 1,
-                current: 1,
-            });
-        }
+      const customers = await Customer.aggregate([
+        {
+          $lookup: {
+            from: 'orders',
+            localField: '_id',
+            foreignField: 'cusId',
+            as: 'orders',
+          },
+        },
+        {
+          $match: {
+            $or: [
+              { name: { $regex: search, $options: 'i' } },
+              { 'orders.products.name': { $regex: search, $options: 'i' } },
+            ],
+          },
+        },
+        {
+          $sort: { updatedAt: -1 },
+        },
+        {
+          $skip: (page - 1) * 100,
+        },
+        {
+          $limit: 100,
+        },
+      ]);
+  
+      const totalDocs = await Customer.countDocuments({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { 'orders.products.name': { $regex: search, $options: 'i' } },
+        ],
+      });
+  
+      const pages = Math.ceil(totalDocs / 100);
+  
+      if (customers) {
+        res.status(200).send({
+          customers: customers,
+          lastPage: page * 100 >= totalDocs ? true : false,
+          pages: pages,
+          current: page,
+        });
+      } else {
+        res.status(400).send({
+          customers: [],
+          lastPage: true,
+          pages: 1,
+          current: 1,
+        });
+      }
     } catch (error) {
-        res.status(500).json({ err: 'error' })
+      res.status(500).json({ err: 'error' });
     }
-}
+  };
 const getCustomer = async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.customerId })
@@ -165,7 +185,7 @@ const getCustomer = async (req, res) => {
                     },
                 },
             },
-            { $sort: { updated_at: 1 } },
+            {  $sort: { updatedAt: -1 }, },
             {
                 $project: {
                     'products.totalPrice': 0,
