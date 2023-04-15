@@ -54,13 +54,47 @@ const getCustomers = async (req, res) => {
                     ]
                 }
             },
+
+
             {
                 $addFields: {
                     isPaid: {
                         $cond: {
                             if: { $eq: [{ $size: '$orders' }, 0] },
                             then: true,
-                            else: { $allElementsTrue: '$orders.isPaid' }
+                            else: { $allElementsTrue: '$orders.isPaid' },
+                            // else: {
+                            //     $cond: {
+                            //         if: {
+                            //             $and: [
+                            //                 { $in: [false, "$orders.isPaid"] },
+                            //                 {
+                            //                     $anyElementTrue: {
+                            //                         $map: {
+                            //                             input: "$orders",
+                            //                             as: "order",
+                            //                             in: {
+                            //                                 $cond: {
+                            //                                     if: {
+                            //                                         $and: [
+                            //                                             { $eq: ["$$order.isPaid", false] },
+                            //                                             { $regexMatch: { input: "$$order.name", regex: search, options: "i" } },
+                            //                                         ],
+                            //                                     },
+                            //                                     then: false,
+                            //                                     else: true,
+                            //                                 },
+                            //                             },
+                            //                         },
+                            //                     },
+
+                            //                 },
+                            //             ],
+                            //         },
+                            //         then: false,
+                            //         else: true,
+                            //     },
+                            // }
                         },
                     },
                 },
