@@ -33,16 +33,16 @@ const isViewer = async (req, res, next) => {
                         req.query.requesterRole = user.role;
                         next()
                     } else {
-                        res.status(403).json({ msg: 'Unauthorized' })
+                        res.status(200).json({ err: 'Unauthorized' })
                     }
                 } else {
-                    res.status(403).json({ msg: 'Invalid token' })
+                    res.status(200).json({ err: 'Invalid token' })
                 }
             } else {
-                res.status(403).json({ msg: 'Invalid token' })
+                res.status(200).json({ err: 'Invalid token' })
             }
         } else {
-            res.status(403).json({ msg: 'Need To Login' })
+            res.status(200).json({ err: 'Need To Login' })
         }
     } catch (err) {
         res.status(500).json({ err: err.message });
@@ -76,16 +76,16 @@ const isEditor = async (req, res, next) => {
                         req.query.requesterRole = user.role;
                         next()
                     } else {
-                        res.status(403).json({ msg: 'Unauthorized' })
+                        res.status(200).json({ err: 'Unauthorized' })
                     }
                 } else {
-                    res.status(403).json({ msg: 'Invalid token' })
+                    res.status(200).json({ err: 'Invalid token' })
                 }
             } else {
-                res.status(403).json({ msg: 'Invalid token' })
+                res.status(200).json({ err: 'Invalid token' })
             }
         } else {
-            res.status(403).json({ msg: 'Need To Login' })
+            res.status(200).json({ err: 'Need To Login' })
         }
     } catch (err) {
         res.status(500).json({ err: err.message });

@@ -37,19 +37,11 @@ const getOrder = async (req, res) => {
     }
 }
 const payOrder = async (req, res) => {
-    // const file = req.file?.path.replace("public", "").split("\\").join("/");
     try {
         const order = await Order.findOne({ _id: req.params.orderId })
-
         if (order) {
             order.paidBy = req.query.requesterId;
             order.isPaid = true;
-            // if (req.file) {
-            //     fs.unlink("./public" + order.img, (err) => {
-            //         console.log(err);
-            //     })
-            //     order.img = file;
-            // }
             await order.save()
             const orderFinal = await Order.findOne({ _id: req.params.orderId })
                 .populate('cusId', ' name img phone')
@@ -66,7 +58,6 @@ const payOrder = async (req, res) => {
 }
 const updateOrder = async (req, res) => {
     const file = req?.file?.path.replace("public", "").split("\\").join("/");
-    console.log(req.body, req.params, req.query)
     try {
         const order = await Order.findOne({ _id: req.params.orderId })
         if (order) {

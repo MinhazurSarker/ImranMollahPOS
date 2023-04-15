@@ -17,119 +17,128 @@ const createCustomer = async (req, res) => {
     }
 }
 
-
-
 const getCustomers = async (req, res) => {
     const page = req.query.page || 1;
     const search = req.query.search || '';
+    const getCustomersArray = async (page, search) => {
+        const match = {
+            name: { $regex: search, $options: "i" }
+        }
+        if (search !== '') {
 
-    try {
-        const customers = await Customer.aggregate([
-            {
-                $lookup: {
-                    from: 'orders',
-                    localField: '_id',
-                    foreignField: 'cusId',
-                    as: 'orders',
+            const customers = await Customer.aggregate([
+                {
+                    $match: match
                 },
-            },
-
-            {
-                $match: {
-                    $or: [
-                        { name: { $regex: search, $options: 'i' } },
-                        {
-                            orders: {
-                                $elemMatch: {
-                                    products: {
-                                        $elemMatch: {
-                                            name: { $regex: search, $options: 'i' },
-
-                                        }
-                                    },
-
-                                }
-                            }
-                        }
-                    ]
-                }
-            },
-
-
-            {
-                $addFields: {
-                    isPaid: {
-                        $cond: {
-                            if: { $eq: [{ $size: '$orders' }, 0] },
-                            then: true,
-                            else: { $allElementsTrue: '$orders.isPaid' },
-                            // else: {
-                            //     $cond: {
-                            //         if: {
-                            //             $and: [
-                            //                 { $in: [false, "$orders.isPaid"] },
-                            //                 {
-                            //                     $anyElementTrue: {
-                            //                         $map: {
-                            //                             input: "$orders",
-                            //                             as: "order",
-                            //                             in: {
-                            //                                 $cond: {
-                            //                                     if: {
-                            //                                         $and: [
-                            //                                             { $eq: ["$$order.isPaid", false] },
-                            //                                             { $regexMatch: { input: "$$order.name", regex: search, options: "i" } },
-                            //                                         ],
-                            //                                     },
-                            //                                     then: false,
-                            //                                     else: true,
-                            //                                 },
-                            //                             },
-                            //                         },
-                            //                     },
-
-                            //                 },
-                            //             ],
-                            //         },
-                            //         then: false,
-                            //         else: true,
-                            //     },
-                            // }
-                        },
+                {
+                    $addFields: {
+                        isPaid: true
                     },
                 },
-            },
-
-            {
-                $project: {
-                    img: 1,
-                    name: 1,
-                    email: 1,
-                    address: 1,
-                    createdAt: 1,
-                    updatedAt: 1,
-                    isPaid: 1,
-
+                {
+                    $project: {
+                        img: 1,
+                        name: 1,
+                        phone: 1,
+                        address: 1,
+                        createdAt: 1,
+                        updatedAt: 1,
+                        isPaid: 1,
+                    },
                 },
-            },
-            {
-                $sort: { updatedAt: -1 },
-            },
-            {
-                $skip: (page - 1) * 100,
-            },
-            {
-                $limit: 100,
-            },
-        ]);
+            ]);
 
-        const totalDocs = await Customer.countDocuments({
-            $or: [
-                { name: { $regex: search, $options: 'i' } },
-                { orders: { $elemMatch: { 'products.name': { $regex: search, $options: 'i' } } } },
-            ],
+            const orders = await Order.find({ "products.name": { $regex: search, $options: "i" } });
+            const customerIds = orders.map(order => order.cusId);
+            const customersFromOrders = await Customer.find({ _id: { $in: customerIds } });
+            const customerOrderMap = orders.reduce((acc, order) => {
+                if (!acc[order.cusId]) {
+                    acc[order.cusId] = {
+                        img: null,
+                        name: null,
+                        phone: null,
+                        address: null,
+                        createdAt: null,
+                        updatedAt: null,
+                        orders: [],
+                        isPaid: true
+                    };
+                }
+                const customer = customersFromOrders.find(c => c._id.toString() === order.cusId.toString());
+                const orderObjs = order.products.map(product => ({
+                    name: product.name,
+                    price: product.price,
+                    qty: product.qty,
+                    type: product.type,
+                    img: product.img,
+                    isPaid: order.isPaid
+                }));
+                acc[order.cusId].orders = acc[order.cusId].orders.concat(orderObjs);
+                acc[order.cusId].isPaid = acc[order.cusId].isPaid && order.isPaid;
+                if (customer) {
+                    acc[order.cusId].img = customer.img;
+                    acc[order.cusId].name = customer.name;
+                    acc[order.cusId].phone = customer.phone;
+                    acc[order.cusId].address = customer.address;
+                    acc[order.cusId].createdAt = customer.createdAt;
+                    acc[order.cusId].updatedAt = customer.updatedAt;
+                }
+                return acc;
+            }, {});
 
-        });
+            const mergedCustomers = Object.keys(customerOrderMap).map(customerId => {
+                const customerOrderInfo = customerOrderMap[customerId];
+                return {
+                    _id: customerId,
+                    img: customerOrderInfo.img,
+                    name: customerOrderInfo.name,
+                    phone: customerOrderInfo.phone,
+                    address: customerOrderInfo.address,
+                    createdAt: customerOrderInfo.createdAt,
+                    updatedAt: customerOrderInfo.updatedAt,
+                    isPaid: customerOrderInfo.isPaid,
+                    orders: customerOrderInfo.orders
+                };
+            });
+            const allCustomers = customers.concat(mergedCustomers);
+            return allCustomers;
+
+        } else {
+            const customers = await Customer.aggregate([
+                {
+                    $addFields: {
+                        isPaid: true
+                    },
+                },
+                {
+                    $project: {
+                        img: 1,
+                        name: 1,
+                        email: 1,
+                        address: 1,
+                        createdAt: 1,
+                        updatedAt: 1,
+                        isPaid: 1,
+                    },
+                },
+                {
+                    $sort: { updatedAt: -1 },
+                },
+                {
+                    $skip: (page - 1) * 100,
+                },
+                {
+                    $limit: 100,
+                },
+            ]);
+            return customers;
+        }
+    }
+
+    try {
+        const customers = await getCustomersArray(page, search)
+
+        const totalDocs = customers.length
 
         const pages = Math.ceil(totalDocs / 100);
 
@@ -162,105 +171,6 @@ const getCustomers = async (req, res) => {
         }
     }
 };
-
-
-// const getCustomers = async (req, res) => {
-//     const page = req.query.page || 1;
-//     const search = req.query.search || '';
-
-
-
-//     try {
-//         const customers = await Customer.aggregate([
-//             {
-//                 $lookup: {
-//                     from: 'orders',
-//                     localField: '_id',
-//                     foreignField: 'cusId',
-//                     as: 'orders',
-//                 },
-//             },
-//             {
-//                 $match: {
-//                     $or: [
-//                         { name: { $regex: search, $options: 'i' }, 'orders.isPaid': true },
-//                         { name: { $regex: search, $options: 'i' }, orders: { $size: 0 } },
-//                         { 'orders.products.name': { $regex: search, $options: 'i' } },
-//                     ],
-//                 },
-//             },
-//             {
-//                 $addFields: {
-//                     isPaid: {
-//                         $cond: {
-//                             if: { $eq: [{ $size: '$orders' }, 0] },
-//                             then: true,
-//                             else: { $allElementsTrue: '$orders.isPaid' }
-//                         },
-//                     },
-//                 },
-//             },
-//             {
-//                 $project: {
-//                     img: 1,
-//                     name: 1,
-//                     email: 1,
-//                     address: 1,
-//                     createdAt: 1,
-//                     updatedAt: 1,
-//                     isPaid: 1,
-
-//                 },
-//             },
-//             {
-//                 $sort: { updatedAt: -1 },
-//             },
-//             {
-//                 $skip: (page - 1) * 100,
-//             },
-//             {
-//                 $limit: 100,
-//             },
-//         ]);
-
-//         const totalDocs = await Customer.countDocuments({
-//             $or: [
-//                 { name: { $regex: search, $options: 'i' }, 'orders.isPaid': true },
-//                 { name: { $regex: search, $options: 'i' }, orders: { $size: 0 } },
-//                 { 'orders.products.name': { $regex: search, $options: 'i' } },
-//             ],
-//         });
-
-//         const pages = Math.ceil(totalDocs / 100);
-
-//         if (customers) {
-//             res.status(200).send({
-//                 customers: customers,
-//                 lastPage: page * 100 >= totalDocs ? true : false,
-//                 pages: pages,
-//                 current: page,
-//             });
-//         } else {
-//             res.status(400).send({
-//                 customers: [],
-//                 lastPage: true,
-//                 pages: 1,
-//                 current: 1,
-//             });
-//         }
-//     } catch (error) {
-//         res.status(500).json({ err: 'error' });
-//     }
-// };
-
-
-
-
-
-
-
-
-
 
 const getCustomer = async (req, res) => {
     try {
@@ -340,6 +250,7 @@ const getCustomer = async (req, res) => {
                     _id: '$_id',
                     totalPrice: { $sum: '$products.totalPrice' },
                     totalProducts: { $sum: "$products.qty" },
+                    products: { $push: "$products" },
                     createdBy: { $first: '$createdBy' },
                     editedBy: { $first: '$editedBy' },
                     paidBy: { $first: '$paidBy' },
@@ -388,9 +299,6 @@ const getCustomer = async (req, res) => {
     }
 }
 
-
-
-
 const updateCustomer = async (req, res) => {
     const file = req.file?.path.replace("public", "").split("\\").join("/");
     try {
@@ -418,16 +326,15 @@ const updateCustomer = async (req, res) => {
 const deleteCustomer = async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.customerId })
-        console.log(customer)
-        const orders = await Order.find({ cusId: customer?._id });
-        orders.map(
-            (item) => {
-                fs.unlink("./public" + item.img, (err) => {
-                    console.log(err);
-                })
-            }
-        )
         if (customer) {
+            const orders = await Order.find({ cusId: customer?._id });
+            orders.map(
+                (item) => {
+                    fs.unlink("./public" + item.img, (err) => {
+                        console.log(err);
+                    })
+                }
+            )
             fs.unlink("./public" + customer.img, (err) => {
                 console.log(err);
             })
