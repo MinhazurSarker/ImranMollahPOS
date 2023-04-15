@@ -17,67 +17,217 @@ const createCustomer = async (req, res) => {
     }
 }
 
+
+
 const getCustomers = async (req, res) => {
     const page = req.query.page || 1;
     const search = req.query.search || '';
-    
+
     try {
-      const customers = await Customer.aggregate([
-        {
-          $lookup: {
-            from: 'orders',
-            localField: '_id',
-            foreignField: 'cusId',
-            as: 'orders',
-          },
-        },
-        {
-          $match: {
+        const customers = await Customer.aggregate([
+            {
+                $lookup: {
+                    from: 'orders',
+                    localField: '_id',
+                    foreignField: 'cusId',
+                    as: 'orders',
+                },
+            },
+
+            {
+                $match: {
+                    $or: [
+                        { name: { $regex: search, $options: 'i' } },
+                        {
+                            orders: {
+                                $elemMatch: {
+                                    products: {
+                                        $elemMatch: {
+                                            name: { $regex: search, $options: 'i' },
+
+                                        }
+                                    },
+
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $addFields: {
+                    isPaid: {
+                        $cond: {
+                            if: { $eq: [{ $size: '$orders' }, 0] },
+                            then: true,
+                            else: { $allElementsTrue: '$orders.isPaid' }
+                        },
+                    },
+                },
+            },
+
+            {
+                $project: {
+                    img: 1,
+                    name: 1,
+                    email: 1,
+                    address: 1,
+                    createdAt: 1,
+                    updatedAt: 1,
+                    isPaid: 1,
+
+                },
+            },
+            {
+                $sort: { updatedAt: -1 },
+            },
+            {
+                $skip: (page - 1) * 100,
+            },
+            {
+                $limit: 100,
+            },
+        ]);
+
+        const totalDocs = await Customer.countDocuments({
             $or: [
-              { name: { $regex: search, $options: 'i' } },
-              { 'orders.products.name': { $regex: search, $options: 'i' } },
+                { name: { $regex: search, $options: 'i' } },
+                { orders: { $elemMatch: { 'products.name': { $regex: search, $options: 'i' } } } },
             ],
-          },
-        },
-        {
-          $sort: { updatedAt: -1 },
-        },
-        {
-          $skip: (page - 1) * 100,
-        },
-        {
-          $limit: 100,
-        },
-      ]);
-  
-      const totalDocs = await Customer.countDocuments({
-        $or: [
-          { name: { $regex: search, $options: 'i' } },
-          { 'orders.products.name': { $regex: search, $options: 'i' } },
-        ],
-      });
-  
-      const pages = Math.ceil(totalDocs / 100);
-  
-      if (customers) {
-        res.status(200).send({
-          customers: customers,
-          lastPage: page * 100 >= totalDocs ? true : false,
-          pages: pages,
-          current: page,
+
         });
-      } else {
-        res.status(400).send({
-          customers: [],
-          lastPage: true,
-          pages: 1,
-          current: 1,
-        });
-      }
+
+        const pages = Math.ceil(totalDocs / 100);
+
+        if (customers) {
+            res.status(200).send({
+                customers: customers,
+                lastPage: page * 100 >= totalDocs ? true : false,
+                pages: pages,
+                current: page,
+            });
+        } else {
+            res.status(400).send({
+                customers: [],
+                lastPage: true,
+                pages: 1,
+                current: 1,
+            });
+        }
     } catch (error) {
-      res.status(500).json({ err: 'error' });
+        if (error.message.includes("Cannot read properties of undefined (reading 'length')")) {
+            res.status(400).send({
+                customers: [],
+                lastPage: true,
+                pages: 1,
+                current: 1,
+            });
+        } else {
+            console.log(error)
+            res.status(500).json({ err: 'error' });
+        }
     }
-  };
+};
+
+
+// const getCustomers = async (req, res) => {
+//     const page = req.query.page || 1;
+//     const search = req.query.search || '';
+
+
+
+//     try {
+//         const customers = await Customer.aggregate([
+//             {
+//                 $lookup: {
+//                     from: 'orders',
+//                     localField: '_id',
+//                     foreignField: 'cusId',
+//                     as: 'orders',
+//                 },
+//             },
+//             {
+//                 $match: {
+//                     $or: [
+//                         { name: { $regex: search, $options: 'i' }, 'orders.isPaid': true },
+//                         { name: { $regex: search, $options: 'i' }, orders: { $size: 0 } },
+//                         { 'orders.products.name': { $regex: search, $options: 'i' } },
+//                     ],
+//                 },
+//             },
+//             {
+//                 $addFields: {
+//                     isPaid: {
+//                         $cond: {
+//                             if: { $eq: [{ $size: '$orders' }, 0] },
+//                             then: true,
+//                             else: { $allElementsTrue: '$orders.isPaid' }
+//                         },
+//                     },
+//                 },
+//             },
+//             {
+//                 $project: {
+//                     img: 1,
+//                     name: 1,
+//                     email: 1,
+//                     address: 1,
+//                     createdAt: 1,
+//                     updatedAt: 1,
+//                     isPaid: 1,
+
+//                 },
+//             },
+//             {
+//                 $sort: { updatedAt: -1 },
+//             },
+//             {
+//                 $skip: (page - 1) * 100,
+//             },
+//             {
+//                 $limit: 100,
+//             },
+//         ]);
+
+//         const totalDocs = await Customer.countDocuments({
+//             $or: [
+//                 { name: { $regex: search, $options: 'i' }, 'orders.isPaid': true },
+//                 { name: { $regex: search, $options: 'i' }, orders: { $size: 0 } },
+//                 { 'orders.products.name': { $regex: search, $options: 'i' } },
+//             ],
+//         });
+
+//         const pages = Math.ceil(totalDocs / 100);
+
+//         if (customers) {
+//             res.status(200).send({
+//                 customers: customers,
+//                 lastPage: page * 100 >= totalDocs ? true : false,
+//                 pages: pages,
+//                 current: page,
+//             });
+//         } else {
+//             res.status(400).send({
+//                 customers: [],
+//                 lastPage: true,
+//                 pages: 1,
+//                 current: 1,
+//             });
+//         }
+//     } catch (error) {
+//         res.status(500).json({ err: 'error' });
+//     }
+// };
+
+
+
+
+
+
+
+
+
+
 const getCustomer = async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.customerId })
@@ -185,7 +335,7 @@ const getCustomer = async (req, res) => {
                     },
                 },
             },
-            {  $sort: { updatedAt: -1 }, },
+            { $sort: { updatedAt: -1 }, },
             {
                 $project: {
                     'products.totalPrice': 0,
