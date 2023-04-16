@@ -40,9 +40,9 @@ const getUnpaidOrders = async (req, res) => {
             {
                 $lookup: {
                     from: 'users',
-                    let: { createdBy: '$createdBy', editedBy: '$editedBy', paidBy: '$paidBy' },
+                    let: { createdBy: '$createdBy', editedBy: '$editedBy',  },
                     pipeline: [
-                        { $match: { $expr: { $in: ['$_id', ['$$createdBy', '$$editedBy', '$$paidBy']] } } },
+                        { $match: { $expr: { $in: ['$_id', ['$$createdBy', '$$editedBy', ]] } } },
                         {
                             $project: {
                                 _id: 1,
@@ -55,25 +55,7 @@ const getUnpaidOrders = async (req, res) => {
                     as: 'users',
                 },
             },
-            {
-                $lookup: {
-                    from: 'customers',
-                    let: { cusId: '$cusId', },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$_id', '$$cusId',] } } },
-                        {
-                            $project: {
-                                _id: 1,
-                                name: 1,
-                                img: 1,
-                                phone: 1,
-                                address: 1,
-                            }
-                        }
-                    ],
-                    as: 'users',
-                },
-            },
+ 
             {
                 $addFields: {
                     createdBy: {
@@ -98,28 +80,8 @@ const getUnpaidOrders = async (req, res) => {
                             0
                         ]
                     },
-                    paidBy: {
-                        $arrayElemAt: [
-                            {
-                                $filter: {
-                                    input: '$users',
-                                    cond: { $eq: ['$$this._id', '$paidBy'] }
-                                }
-                            },
-                            0
-                        ]
-                    },
-                    cusId: {
-                        $arrayElemAt: [
-                            {
-                                $filter: {
-                                    input: '$customers',
-                                    cond: { $eq: ['$$this._id', '$cusId'] }
-                                }
-                            },
-                            0
-                        ]
-                    },
+          
+        
                 }
             },
             {
@@ -130,8 +92,6 @@ const getUnpaidOrders = async (req, res) => {
                     products: { $push: "$products" },
                     createdBy: { $first: '$createdBy' },
                     editedBy: { $first: '$editedBy' },
-                    paidBy: { $first: '$paidBy' },
-                    cusId: { $first: '$cusId' },
                     date: { $first: '$date' },
                     isPaid: { $first: '$isPaid' },
                 },
@@ -150,19 +110,8 @@ const getUnpaidOrders = async (req, res) => {
                         img: '$editedBy.img',
                         role: '$editedBy.role',
                     },
-                    paidBy: {
-                        _id: '$paidBy._id',
-                        name: '$paidBy.name',
-                        img: '$paidBy.img',
-                        role: '$paidBy.role',
-                    },
-                    cusId: {
-                        _id: '$cusId._id',
-                        name: '$cusId.name',
-                        img: '$cusId.img',
-                        phone: '$cusId.phone',
-                        address: '$cusId.address',
-                    },
+                  
+          
                 },
             },
             { $sort: { updatedAt: -1 }, },
