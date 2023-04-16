@@ -171,6 +171,107 @@ const getCustomers = async (req, res) => {
         }
     }
 };
+const getUnpaidCustomers = async (req, res) => {
+    const page = req.query.page || 1;
+    const search = req.query.search || '';
+    const getCustomersArray = async (page, search) => {
+        const match = {
+            name: { $regex: search, $options: "i" }
+        }
+
+        const orders = await Order.find({ isPaid: false });
+        const customerIds = orders.map(order => order.cusId);
+        const customersFromOrders = await Customer.find({ _id: { $in: customerIds } });
+        const customerOrderMap = orders.reduce((acc, order) => {
+            if (!acc[order.cusId]) {
+                acc[order.cusId] = {
+                    img: null,
+                    name: null,
+                    phone: null,
+                    address: null,
+                    createdAt: null,
+                    updatedAt: null,
+                    orders: [],
+                    isPaid: true
+                };
+            }
+            const customer = customersFromOrders.find(c => c._id.toString() === order.cusId.toString());
+            const orderObjs = order.products.map(product => ({
+                name: product.name,
+                price: product.price,
+                qty: product.qty,
+                type: product.type,
+                img: product.img,
+                isPaid: order.isPaid
+            }));
+            acc[order.cusId].orders = acc[order.cusId].orders.concat(orderObjs);
+            acc[order.cusId].isPaid = acc[order.cusId].isPaid && order.isPaid;
+            if (customer) {
+                acc[order.cusId].img = customer.img;
+                acc[order.cusId].name = customer.name;
+                acc[order.cusId].phone = customer.phone;
+                acc[order.cusId].address = customer.address;
+                acc[order.cusId].createdAt = customer.createdAt;
+                acc[order.cusId].updatedAt = customer.updatedAt;
+            }
+            return acc;
+        }, {});
+
+        const mergedCustomers = Object.keys(customerOrderMap).map(customerId => {
+            const customerOrderInfo = customerOrderMap[customerId];
+            return {
+                _id: customerId,
+                img: customerOrderInfo.img,
+                name: customerOrderInfo.name,
+                phone: customerOrderInfo.phone,
+                address: customerOrderInfo.address,
+                createdAt: customerOrderInfo.createdAt,
+                updatedAt: customerOrderInfo.updatedAt,
+                isPaid: customerOrderInfo.isPaid,
+                orders: customerOrderInfo.orders
+            };
+        });
+        return mergedCustomers;
+
+
+    }
+
+    try {
+        const customers = await getCustomersArray(page, search)
+
+        const totalDocs = customers.length
+
+        const pages = Math.ceil(totalDocs / 100);
+
+        if (customers) {
+            res.status(200).send({
+                customers: customers,
+                lastPage: page * 100 >= totalDocs ? true : false,
+                pages: pages,
+                current: page,
+            });
+        } else {
+            res.status(400).send({
+                customers: [],
+                lastPage: true,
+                pages: 1,
+                current: 1,
+            });
+        }
+    } catch (error) {
+        if (error.message.includes("Cannot read properties of undefined (reading 'length')")) {
+            res.status(400).send({
+                customers: [],
+                lastPage: true,
+                pages: 1,
+                current: 1,
+            });
+        } else {
+            console.log(error)
+            res.status(500).json({ err: 'error' });
+        }
+    }
+};
 
 const getCustomer = async (req, res) => {
     try {
@@ -351,6 +452,7 @@ const deleteCustomer = async (req, res) => {
 module.exports = {
     createCustomer,
     getCustomers,
+    getUnpaidCustomers,
     getCustomer,
     updateCustomer,
     deleteCustomer,

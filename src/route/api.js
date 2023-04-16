@@ -4,7 +4,7 @@ const { getIndex, } = require('./../controller/settingsC.js');
 const { createOrder, updateOrder, getOrder, deleteOrder, payOrder } = require('./../controller/orderC.js');
 const { isAdmin, isEditor, isViewer } = require('./../middleware/accessControl.js');
 const { imgUpload } = require('./../middleware/file.js');
-const { getCustomer, createCustomer, updateCustomer, getCustomers, deleteCustomer } = require('../controller/customerC.js');
+const { getCustomer, createCustomer, updateCustomer, getCustomers, deleteCustomer, getUnpaidCustomers } = require('../controller/customerC.js');
 
 const router = express();
 
@@ -31,6 +31,7 @@ router.post('/order/:orderId', isEditor, imgUpload, updateOrder)
 router.delete('/order/:orderId', isAdmin, deleteOrder)
 //----------------------------------------------------------------
 router.get('/customers', isEditor, getCustomers)
+router.get('/customers/unpaid', isEditor, getUnpaidCustomers)
 router.get('/customer/:customerId', isViewer, getCustomer)
 router.post('/customers', isEditor, imgUpload, createCustomer)
 router.post('/customer/:customerId', isEditor, imgUpload, updateCustomer)
