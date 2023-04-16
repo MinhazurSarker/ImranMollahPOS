@@ -47,7 +47,6 @@ const getCustomers = async (req, res) => {
                     },
                 },
             ]);
-
             const orders = await Order.find({ "products.name": { $regex: search, $options: "i" } });
             const customerIds = orders.map(order => order.cusId);
             const customersFromOrders = await Customer.find({ _id: { $in: customerIds } });
@@ -137,14 +136,14 @@ const getCustomers = async (req, res) => {
 
     try {
         const customers = await getCustomersArray(page, search)
-
+        function paginateArray(array, page_size, page_number) {
+            return array.slice(((page_number - 1) * page_size), (page_number * page_size));
+        }
         const totalDocs = customers.length
-
         const pages = Math.ceil(totalDocs / 100);
-
         if (customers) {
             res.status(200).send({
-                customers: customers,
+                customers: paginateArray(customers, 100, page),
                 lastPage: page * 100 >= totalDocs ? true : false,
                 pages: pages,
                 current: page,
@@ -238,14 +237,14 @@ const getUnpaidCustomers = async (req, res) => {
 
     try {
         const customers = await getCustomersArray(page, search)
-
+        function paginateArray(array, page_size, page_number) {
+            return array.slice(((page_number - 1) * page_size), (page_number * page_size));
+        }
         const totalDocs = customers.length
-
         const pages = Math.ceil(totalDocs / 100);
-
         if (customers) {
             res.status(200).send({
-                customers: customers,
+                customers: paginateArray(customers, 100, page),
                 lastPage: page * 100 >= totalDocs ? true : false,
                 pages: pages,
                 current: page,
