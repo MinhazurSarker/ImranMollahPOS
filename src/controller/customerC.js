@@ -151,7 +151,6 @@ const getCustomers = async (req, res) => {
         } else {
             res.status(400).send({
                 customers: [],
-                lastPage: true,
                 pages: 1,
                 current: 1,
             });
@@ -160,7 +159,6 @@ const getCustomers = async (req, res) => {
         if (error.message.includes("Cannot read properties of undefined (reading 'length')")) {
             res.status(400).send({
                 customers: [],
-                lastPage: true,
                 pages: 1,
                 current: 1,
             });
@@ -252,7 +250,6 @@ const getUnpaidCustomers = async (req, res) => {
         } else {
             res.status(400).send({
                 customers: [],
-                lastPage: true,
                 pages: 1,
                 current: 1,
             });
@@ -261,7 +258,6 @@ const getUnpaidCustomers = async (req, res) => {
         if (error.message.includes("Cannot read properties of undefined (reading 'length')")) {
             res.status(400).send({
                 customers: [],
-                lastPage: true,
                 pages: 1,
                 current: 1,
             });

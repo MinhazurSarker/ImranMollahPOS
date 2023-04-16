@@ -1,7 +1,7 @@
 const express = require('express');
 const { createUser, login, updateUser, deleteUser, getUser, getUsers, createAdmin, getMyProfile } = require('./../controller/userC.js');
 const { getIndex, } = require('./../controller/settingsC.js');
-const { createOrder, updateOrder, getOrder, deleteOrder, payOrder } = require('./../controller/orderC.js');
+const { createOrder, updateOrder, getOrder, deleteOrder, payOrder, getUnpaidOrders } = require('./../controller/orderC.js');
 const { isAdmin, isEditor, isViewer } = require('./../middleware/accessControl.js');
 const { imgUpload } = require('./../middleware/file.js');
 const { getCustomer, createCustomer, updateCustomer, getCustomers, deleteCustomer, getUnpaidCustomers } = require('../controller/customerC.js');
@@ -26,6 +26,7 @@ router.delete('/user/:userId', isAdmin, deleteUser)
 router.get('/home', isViewer, getIndex)
 router.get('/order/:orderId', isViewer, getOrder)
 router.post('/order/pay/:orderId', isEditor, payOrder)
+router.get('/orders/unpaid', isEditor,  getUnpaidOrders)
 router.post('/orders', isEditor, imgUpload, createOrder)
 router.post('/order/:orderId', isEditor, imgUpload, updateOrder)
 router.delete('/order/:orderId', isAdmin, deleteOrder)

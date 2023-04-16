@@ -19,6 +19,182 @@ const createOrder = async (req, res) => {
     }
 }
 
+const getUnpaidOrders = async (req, res) => {
+    const page = req.query.page || 1;
+
+    try {
+        const orders = await Order.aggregate([
+            {
+                $match: {
+                    isPaid: false
+                },
+            },
+            {
+                $unwind: '$products',
+            },
+            {
+                $addFields: {
+                    'products.totalPrice': { $multiply: ['$products.price', '$products.qty'] },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    let: { createdBy: '$createdBy', editedBy: '$editedBy', paidBy: '$paidBy' },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$_id', ['$$createdBy', '$$editedBy', '$$paidBy']] } } },
+                        {
+                            $project: {
+                                _id: 1,
+                                name: 1,
+                                img: 1,
+                                role: 1,
+                            }
+                        }
+                    ],
+                    as: 'users',
+                },
+            },
+            {
+                $lookup: {
+                    from: 'customers',
+                    let: { cusId: '$cusId', },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$_id', '$$cusId',] } } },
+                        {
+                            $project: {
+                                _id: 1,
+                                name: 1,
+                                img: 1,
+                                phone: 1,
+                                address: 1,
+                            }
+                        }
+                    ],
+                    as: 'users',
+                },
+            },
+            {
+                $addFields: {
+                    createdBy: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$users',
+                                    cond: { $eq: ['$$this._id', '$createdBy'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                    editedBy: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$users',
+                                    cond: { $eq: ['$$this._id', '$editedBy'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                    paidBy: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$users',
+                                    cond: { $eq: ['$$this._id', '$paidBy'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                    cusId: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$customers',
+                                    cond: { $eq: ['$$this._id', '$cusId'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                }
+            },
+            {
+                $group: {
+                    _id: '$_id',
+                    totalPrice: { $sum: '$products.totalPrice' },
+                    totalProducts: { $sum: "$products.qty" },
+                    products: { $push: "$products" },
+                    createdBy: { $first: '$createdBy' },
+                    editedBy: { $first: '$editedBy' },
+                    paidBy: { $first: '$paidBy' },
+                    cusId: { $first: '$cusId' },
+                    date: { $first: '$date' },
+                    isPaid: { $first: '$isPaid' },
+                },
+            },
+            {
+                $addFields: {
+                    createdBy: {
+                        _id: '$createdBy._id',
+                        name: '$createdBy.name',
+                        img: '$createdBy.img',
+                        role: '$createdBy.role',
+                    },
+                    editedBy: {
+                        _id: '$editedBy._id',
+                        name: '$editedBy.name',
+                        img: '$editedBy.img',
+                        role: '$editedBy.role',
+                    },
+                    paidBy: {
+                        _id: '$paidBy._id',
+                        name: '$paidBy.name',
+                        img: '$paidBy.img',
+                        role: '$paidBy.role',
+                    },
+                    cusId: {
+                        _id: '$cusId._id',
+                        name: '$cusId.name',
+                        img: '$cusId.img',
+                        phone: '$cusId.phone',
+                        address: '$cusId.address',
+                    },
+                },
+            },
+            { $sort: { updatedAt: -1 }, },
+            {
+                $skip: (page - 1) * 100
+            },
+            {
+                $limit: 100
+            },
+            {
+                $project: {
+                    'products.totalPrice': 0,
+
+                },
+            },
+        ]);
+        const totalDocs = await Order.countDocuments({ isPaid: false })
+        const pages = Math.ceil(totalDocs / 100);
+        if (orders) {
+            res.status(200).json({
+                msg: 'success',
+                pages: pages,
+                current: 1,
+                orders: orders
+            })
+        } else {
+            res.status(404).json({ err: 'notFound', })
+        }
+    } catch (error) {
+        res.status(500).json({ err: 'error' })
+    }
+}
 const getOrder = async (req, res) => {
     try {
         const order = await Order.findOne({ _id: req.params.orderId })
@@ -107,6 +283,7 @@ const deleteOrder = async (req, res) => {
 module.exports = {
     createOrder,
     getOrder,
+    getUnpaidOrders,
     payOrder,
     updateOrder,
     deleteOrder,
