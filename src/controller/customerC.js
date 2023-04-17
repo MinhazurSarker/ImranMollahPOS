@@ -25,7 +25,6 @@ const getCustomers = async (req, res) => {
             name: { $regex: search, $options: "i" }
         }
         if (search !== '') {
-
             const customers = await Customer.aggregate([
                 {
                     $match: match
@@ -271,11 +270,12 @@ const getUnpaidCustomers = async (req, res) => {
 const getCustomer = async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.customerId })
-        const orders = await Order.aggregate([
+        const unPaidOrders = await Order.aggregate([
             {
                 $match: {
                     // @ts-ignore
                     cusId: customer._id,
+                    isPaid:false
                 },
             },
             {
@@ -376,7 +376,121 @@ const getCustomer = async (req, res) => {
                     },
                 },
             },
-            { $sort: { updatedAt: -1 }, },
+            { $sort: { updatedAt: -1, _id: -1 } },
+            {
+                $project: {
+                    'products.totalPrice': 0,
+
+                },
+            },
+        ]);
+        const paidOrders = await Order.aggregate([
+            {
+                $match: {
+                    // @ts-ignore
+                    cusId: customer._id,
+                    isPaid:true
+                },
+            },
+            {
+                $unwind: '$products',
+            },
+            {
+                $addFields: {
+                    'products.totalPrice': { $multiply: ['$products.price', '$products.qty'] },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    let: { createdBy: '$createdBy', editedBy: '$editedBy', paidBy: '$paidBy' },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$_id', ['$$createdBy', '$$editedBy', '$$paidBy']] } } },
+                        {
+                            $project: {
+                                _id: 1,
+                                name: 1,
+                                img: 1,
+                                role: 1,
+                            }
+                        }
+                    ],
+                    as: 'users',
+                },
+            },
+            {
+                $addFields: {
+                    createdBy: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$users',
+                                    cond: { $eq: ['$$this._id', '$createdBy'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                    editedBy: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$users',
+                                    cond: { $eq: ['$$this._id', '$editedBy'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                    paidBy: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$users',
+                                    cond: { $eq: ['$$this._id', '$paidBy'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                }
+            },
+            {
+                $group: {
+                    _id: '$_id',
+                    totalPrice: { $sum: '$products.totalPrice' },
+                    totalProducts: { $sum: "$products.qty" },
+                    products: { $push: "$products" },
+                    createdBy: { $first: '$createdBy' },
+                    editedBy: { $first: '$editedBy' },
+                    paidBy: { $first: '$paidBy' },
+                    date: { $first: '$date' },
+                    isPaid: { $first: '$isPaid' },
+                },
+            },
+            {
+                $addFields: {
+                    createdBy: {
+                        _id: '$createdBy._id',
+                        name: '$createdBy.name',
+                        img: '$createdBy.img',
+                        role: '$createdBy.role',
+                    },
+                    editedBy: {
+                        _id: '$editedBy._id',
+                        name: '$editedBy.name',
+                        img: '$editedBy.img',
+                        role: '$editedBy.role',
+                    },
+                    paidBy: {
+                        _id: '$paidBy._id',
+                        name: '$paidBy.name',
+                        img: '$paidBy.img',
+                        role: '$paidBy.role',
+                    },
+                },
+            },
+            { $sort: { updatedAt: -1, _id: -1 } },
             {
                 $project: {
                     'products.totalPrice': 0,
@@ -385,7 +499,7 @@ const getCustomer = async (req, res) => {
             },
         ]);
         if (customer) {
-            res.status(200).json({ msg: 'success', customer: customer, orders: orders, })
+            res.status(200).json({ msg: 'success', customer: customer, orders: unPaidOrders.concat(paidOrders), })
         } else {
             res.status(404).json({ err: 'notFound', })
         }
