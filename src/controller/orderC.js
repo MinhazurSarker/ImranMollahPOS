@@ -40,7 +40,7 @@ const getUnpaidOrders = async (req, res) => {
             {
                 $lookup: {
                     from: 'users',
-                    let: { createdBy: '$createdBy', editedBy: '$editedBy',  },
+                    let: { createdBy: '$createdBy', editedBy: '$editedBy', },
                     pipeline: [
                         { $match: { $expr: { $in: ['$_id', ['$$createdBy', '$$editedBy', ]] } } },
                         {
@@ -53,6 +53,24 @@ const getUnpaidOrders = async (req, res) => {
                         }
                     ],
                     as: 'users',
+                },
+            },
+            {
+                $lookup: {
+                    from: 'customers',
+                    let: {  cusId: '$cusId', },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$_id', ['$$cusId' ]] } } },
+                        {
+                            $project: {
+                                _id: 1,
+                                name: 1,
+                                img: 1,
+                                phone: 1,
+                            }
+                        }
+                    ],
+                    as: 'customers',
                 },
             },
  
@@ -80,6 +98,17 @@ const getUnpaidOrders = async (req, res) => {
                             0
                         ]
                     },
+                    cusId: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$customers',
+                                    cond: { $eq: ['$$this._id', '$cusId'] }
+                                }
+                            },
+                            0
+                        ]
+                    },
           
         
                 }
@@ -92,6 +121,7 @@ const getUnpaidOrders = async (req, res) => {
                     products: { $push: "$products" },
                     createdBy: { $first: '$createdBy' },
                     editedBy: { $first: '$editedBy' },
+                    cusId: { $first: '$cusId' },
                     date: { $first: '$date' },
                     isPaid: { $first: '$isPaid' },
                 },
@@ -109,6 +139,12 @@ const getUnpaidOrders = async (req, res) => {
                         name: '$editedBy.name',
                         img: '$editedBy.img',
                         role: '$editedBy.role',
+                    },
+                    cusId: {
+                        _id: '$cusId._id',
+                        name: '$cusId.name',
+                        img: '$cusId.img',
+                        phone: '$cusId.phone',
                     },
                   
           
@@ -131,6 +167,7 @@ const getUnpaidOrders = async (req, res) => {
         const totalDocs = await Order.countDocuments({ isPaid: false })
         const pages = Math.ceil(totalDocs / 100);
         if (orders) {
+            console.log(orders)
             res.status(200).json({
                 msg: 'success',
                 pages: pages,
@@ -167,6 +204,7 @@ const payOrder = async (req, res) => {
         if (order) {
             order.paidBy = req.query.requesterId;
             order.isPaid = true;
+            order.payDate = req.body.payDate;
             await order.save()
             const orderFinal = await Order.findOne({ _id: req.params.orderId })
                 .populate('cusId', ' name img phone')

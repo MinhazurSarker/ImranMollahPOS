@@ -19,6 +19,7 @@ const OrderSchema = new mongoose.Schema(
         },
         isPaid: { type: Boolean,},
         date: { type: String, default: '-' },
+        payDate: { type: String, default: '-' },
         products:[
             {
                 name:{ type: String, default: '-' },
