@@ -42,7 +42,7 @@ const getUnpaidOrders = async (req, res) => {
                     from: 'users',
                     let: { createdBy: '$createdBy', editedBy: '$editedBy', },
                     pipeline: [
-                        { $match: { $expr: { $in: ['$_id', ['$$createdBy', '$$editedBy', ]] } } },
+                        { $match: { $expr: { $in: ['$_id', ['$$createdBy', '$$editedBy',]] } } },
                         {
                             $project: {
                                 _id: 1,
@@ -58,9 +58,9 @@ const getUnpaidOrders = async (req, res) => {
             {
                 $lookup: {
                     from: 'customers',
-                    let: {  cusId: '$cusId', },
+                    let: { cusId: '$cusId', },
                     pipeline: [
-                        { $match: { $expr: { $in: ['$_id', ['$$cusId' ]] } } },
+                        { $match: { $expr: { $in: ['$_id', ['$$cusId']] } } },
                         {
                             $project: {
                                 _id: 1,
@@ -73,7 +73,7 @@ const getUnpaidOrders = async (req, res) => {
                     as: 'customers',
                 },
             },
- 
+
             {
                 $addFields: {
                     createdBy: {
@@ -109,8 +109,8 @@ const getUnpaidOrders = async (req, res) => {
                             0
                         ]
                     },
-          
-        
+
+
                 }
             },
             {
@@ -146,8 +146,8 @@ const getUnpaidOrders = async (req, res) => {
                         img: '$cusId.img',
                         phone: '$cusId.phone',
                     },
-                  
-          
+
+
                 },
             },
             { $sort: { updatedAt: -1 }, },
@@ -251,6 +251,52 @@ const updateOrder = async (req, res) => {
         res.status(500).json({ err: 'error' })
     }
 }
+const partialPaidOrder = async (req, res) => {
+    const file = req?.file?.path.replace("public", "").split("\\").join("/");
+    try {
+        const order = await Order.findOne({ _id: req.params.orderId })
+        if (order) {
+            function filterOut(bigArray, smallArray, key = '_id') {
+                const smallSet = new Set(smallArray.map(item => item[key]));
+                const newArray = bigArray.map((item) => {
+                    const obj = JSON.parse(JSON.stringify(item));
+                    return { ...obj, _id: (obj._id).toString() }
+                }).filter(item => !smallSet.has(item[key]));
+                return newArray;
+            }
+
+            if (req.body.products.length == 0) {
+                return res.status(500).json({ err: 'No products selected', order: order })
+            }
+            const newOrder = await new Order({
+                cusId: order.cusId,
+                createdBy: order.createdBy,
+                paidBy: req.query.requesterId,
+                isPaid: true,
+                payDate: req.body.payDate,
+                date: order.date,
+                products: req.body.products,
+                img: order.img
+            })
+
+            order.products = filterOut(order.products, req.body.products);
+            await newOrder.save()
+            await order.save()
+            const orderFinal = await Order.findOne({ _id: req.params.orderId })
+                .populate('cusId', ' name img phone')
+                .populate('createdBy', 'role name img')
+                .populate('editedBy', 'role name img')
+                .populate('paidBy', 'role name img')
+            return res.status(200).json({ msg: 'success', order: orderFinal, newOrder: newOrder })
+
+        } else {
+            res.status(404).json({ err: 'notFound', })
+        }
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ err: 'error' })
+    }
+}
 const deleteOrder = async (req, res) => {
     try {
         const order = await Order.findOne({ _id: req.params.orderId })
@@ -274,4 +320,5 @@ module.exports = {
     payOrder,
     updateOrder,
     deleteOrder,
+    partialPaidOrder,
 }
