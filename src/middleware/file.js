@@ -39,7 +39,38 @@ const imgUpload = multer({
         }
     },
 }).single("img");
+const orderUpload = multer({
+    storage: imgStorage,
+    limits: {
+        fileSize: 5000000,
+    },
+    fileFilter: (req, file, cb) => {
+        if (
+            file.mimetype == "image/png" ||
+            file.mimetype == "image/jpg" ||
+            file.mimetype == "image/jpeg"
+        ) {
+            cb(null, true);
+        } else {
+            cb(null, false);
+        }
+    },
+}).fields([{
+    name: 'img',
+    maxCount: 1
+},
+{
+    name: 'nid',
+    maxCount: 1
+},
+{
+    name: 'fingerprint',
+    maxCount: 1
+}
+]);
+
 
 module.exports = {
     imgUpload,
+    orderUpload,
 }

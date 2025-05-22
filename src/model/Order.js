@@ -17,19 +17,21 @@ const OrderSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
-        isPaid: { type: Boolean,},
+        isPaid: { type: Boolean, },
         date: { type: String, default: '-' },
         payDate: { type: String, default: '-' },
-        products:[
+        products: [
             {
-                name:{ type: String, default: '-' },
-                price:{ type: Number, default: 0 },
-                qty:{ type: Number, default: 0 },
-                type:{ type: String, default: '-' },
-                img:{ type: String, default: '-' },
+                name: { type: String, default: '-' },
+                price: { type: Number, default: 0 },
+                qty: { type: Number, default: 0 },
+                type: { type: String, default: '-' },
+                img: { type: String, default: '-' },
             }
         ],
-        img:{ type: String, default: '-' },
+        img: { type: String, default: '-' },
+        nid: { type: String, default: '-' },
+        fingerprint: { type: String, default: '-' },
     },
     {
         timestamps: true

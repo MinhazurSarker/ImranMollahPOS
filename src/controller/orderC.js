@@ -1,8 +1,7 @@
 const Order = require('../model/Order.js')
 const fs = require("fs");
 const createOrder = async (req, res) => {
-    const file = req.file?.path.replace("public", "").split("\\").join("/");
-    console.log(req.query)
+
     try {
         const order = await new Order({
             cusId: req.body.cusId,
@@ -10,7 +9,10 @@ const createOrder = async (req, res) => {
             isPaid: false,
             date: req.body.date,
             products: JSON.parse(req.body.products),
-            img: file
+            img: req.files?.img?.[0]?.path.replace("public", "").split("\\").join("/") || '-',
+            nid: req.files?.nid?.[0]?.path.replace("public", "").split("\\").join("/") || '-',
+            fingerprint: req.files?.fingerprint?.[0]?.path.replace("public", "").split("\\").join("/") || '-',
+
         })
         await order.save()
         res.status(200).json({ msg: 'success', order: order })
@@ -220,7 +222,9 @@ const payOrder = async (req, res) => {
     }
 }
 const updateOrder = async (req, res) => {
-    const file = req?.file?.path.replace("public", "").split("\\").join("/");
+    const img = req.files?.img?.[0]?.path.replace("public", "").split("\\").join("/");
+    const nid = req.files?.nid?.[0]?.path.replace("public", "").split("\\").join("/");
+    const fingerprint = req.files?.fingerprint?.[0]?.path.replace("public", "").split("\\").join("/");
     try {
         const order = await Order.findOne({ _id: req.params.orderId })
         if (order) {
@@ -228,11 +232,23 @@ const updateOrder = async (req, res) => {
                 order.products = JSON.parse(req.body.products);
                 order.editedBy = req.query.requesterId;
                 order.date = req.body.date;
-                if (req.file) {
+                if (img) {
                     fs.unlink("./public" + order.img, (err) => {
                         console.log(err);
                     })
-                    order.img = file;
+                    order.img = img;
+                }
+                if (nid) {
+                    fs.unlink("./public" + order.nid, (err) => {
+                        console.log(err);
+                    })
+                    order.nid = nid;
+                }
+                if (fingerprint) {
+                    fs.unlink("./public" + order.fingerprint, (err) => {
+                        console.log(err);
+                    })
+                    order.fingerprint = fingerprint;
                 }
                 await order.save()
                 const orderFinal = await Order.findOne({ _id: req.params.orderId })
