@@ -1,7 +1,7 @@
 const express = require('express');
 const { createUser, login, updateUser, deleteUser, getUser, getUsers, createAdmin, getMyProfile } = require('./../controller/userC.js');
 const { getIndex, } = require('./../controller/settingsC.js');
-const { createOrder, updateOrder, getOrder, deleteOrder, payOrder, getUnpaidOrders, partialPaidOrder } = require('./../controller/orderC.js');
+const { createOrder, updateOrder, getOrder, deleteOrder, payOrder, getUnpaidOrders, partialPaidOrder, updateOrderPayDate } = require('./../controller/orderC.js');
 const { isAdmin, isEditor, isViewer } = require('./../middleware/accessControl.js');
 const { imgUpload, orderUpload } = require('./../middleware/file.js');
 const { getCustomer, createCustomer, updateCustomer, getCustomers, deleteCustomer, getUnpaidCustomers } = require('../controller/customerC.js');
@@ -28,7 +28,7 @@ router.get('/order/:orderId', isViewer, getOrder)
 router.post('/order/pay/:orderId', isEditor, payOrder)
 router.get('/orders/unpaid', isEditor, getUnpaidOrders)
 router.post('/orders', isEditor, orderUpload, createOrder)
-router.post('/order/:orderId', isEditor, orderUpload, updateOrder)
+router.post('/order/date/:orderId', isEditor, orderUpload, updateOrderPayDate)
 router.post('/order/part-select/:orderId', isEditor, partialPaidOrder)
 router.delete('/order/:orderId', isAdmin, deleteOrder)
 //----------------------------------------------------------------

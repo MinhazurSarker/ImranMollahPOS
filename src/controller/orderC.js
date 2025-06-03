@@ -268,6 +268,30 @@ const updateOrder = async (req, res) => {
         res.status(500).json({ err: 'error' })
     }
 }
+const updateOrderPayDate = async (req, res) => {
+
+    try {
+        const order = await Order.findOne({ _id: req.params.orderId })
+        if (order) {
+            if (order?.isPaid !== true) {
+                order.payDate = req.body.payDate || order.payDate;
+                await order.save()
+                const orderFinal = await Order.findOne({ _id: req.params.orderId })
+                    .populate('cusId', ' name img phone')
+                    .populate('createdBy', 'role name img')
+                    .populate('editedBy', 'role name img')
+                    .populate('paidBy', 'role name img')
+                res.status(200).json({ msg: 'success', order: orderFinal })
+            } else {
+                res.status(200).json({ err: 'You can not edit an order which is paid' })
+            }
+        } else {
+            res.status(404).json({ err: 'notFound', })
+        }
+    } catch (error) {
+        res.status(500).json({ err: 'error' })
+    }
+}
 const partialPaidOrder = async (req, res) => {
     const file = req?.file?.path.replace("public", "").split("\\").join("/");
     try {
@@ -338,4 +362,5 @@ module.exports = {
     updateOrder,
     deleteOrder,
     partialPaidOrder,
+    updateOrderPayDate,
 }
