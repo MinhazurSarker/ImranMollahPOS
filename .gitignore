@@ -1,11 +1,8 @@
-
 # dependencies
 /node_modules
 /public/*
 # testing
 .env
-
+.DS_*
 # debug
 npm-debug.log*
-
-

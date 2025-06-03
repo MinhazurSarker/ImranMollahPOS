@@ -229,9 +229,10 @@ const updateOrder = async (req, res) => {
         const order = await Order.findOne({ _id: req.params.orderId })
         if (order) {
             if (order?.isPaid !== true) {
-                order.products = JSON.parse(req.body.products);
+                order.products = JSON.parse(req.body.products) || order.products;
                 order.editedBy = req.query.requesterId;
-                order.date = req.body.date;
+                order.date = req.body.date || order.date;
+                order.payDate = req.body.payDate || order.payDate;
                 if (img) {
                     fs.unlink("./public" + order.img, (err) => {
                         console.log(err);
