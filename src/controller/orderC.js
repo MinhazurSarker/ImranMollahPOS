@@ -272,8 +272,10 @@ const updateOrderPayDate = async (req, res) => {
     try {
         const order = await Order.findOne({ _id: req.params.orderId })
         if (order) {
+            console.log(req.body)
             order.payDate = req.body.payDate || order.payDate;
             order.dueDate = req.body.dueDate || order.dueDate;
+            order.date = req.body.date || order.date;
             await order.save()
             const orderFinal = await Order.findOne({ _id: req.params.orderId })
                 .populate('cusId', ' name img phone')
